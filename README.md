@@ -2,7 +2,7 @@
 
 this was 99% gpt5 code using vscode copilot
 
-please do not sue me atlassian i am not selling this i promise
+surely atlassian dont own a patent to the concept of columns
 
 just download and run the exe ig
 
