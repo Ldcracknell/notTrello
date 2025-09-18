@@ -222,17 +222,29 @@ class TaskCard(tk.Frame):
         self.bind_events()
         self.bind("<Configure>", self._on_resize)
 
-    def _on_resize(self, _):
-        w = max(self.winfo_width() - 24, 100)
-        self.lbl.configure(wraplength=w)
-
     def bind_events(self):
-        for w in (self, self.lbl, self.btns):
-            w.bind("<Enter>", self._on_enter)
-            w.bind("<Leave>", self._on_leave)
-            w.bind("<Button-1>", self._on_press)
-            w.bind("<B1-Motion>", self._on_drag)
-            w.bind("<ButtonRelease-1>", self._on_release)
+        # Hover styling
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        self.lbl.bind("<Enter>", self._on_enter)
+        self.lbl.bind("<Leave>", self._on_leave)
+        self.btns.bind("<Enter>", self._on_enter)
+        self.btns.bind("<Leave>", self._on_leave)
+        # Drag interactions: make the label and the gap (btns frame) draggable
+        self.lbl.bind("<ButtonPress-1>", self._on_press)
+        self.lbl.bind("<B1-Motion>", self._on_drag)
+        self.lbl.bind("<ButtonRelease-1>", self._on_release)
+        self.btns.bind("<ButtonPress-1>", self._on_press)
+        self.btns.bind("<B1-Motion>", self._on_drag)
+        self.btns.bind("<ButtonRelease-1>", self._on_release)
+
+    def _on_resize(self, event):
+        # Adjust wraplength for the label to fit the card width
+        try:
+            pad = 20
+            self.lbl.configure(wraplength=max(100, event.width - pad))
+        except Exception:
+            pass
 
     def _on_enter(self, _):
         self.configure(bg=CARD_HOVER)
@@ -256,6 +268,38 @@ class TaskCard(tk.Frame):
                     self._get_app().save_state()
                 except Exception:
                     pass
+
+        def move_to_backlog():
+            new_text = title_entry.get().strip()
+            new_desc = desc_txt.get("1.0", "end").strip()
+            if not new_text:
+                try:
+                    messagebox.showwarning("Missing title", "Please enter a task title before moving to Backlog.")
+                except Exception:
+                    pass
+                return
+            app = self._get_app()
+            # Add to backlog
+            try:
+                if hasattr(app, "backlog") and app.backlog:
+                    app.backlog.add_item(new_text, new_desc)
+            except Exception:
+                pass
+            # Remove this card from its column
+            try:
+                self.destroy()
+            except Exception:
+                pass
+            # Close the view window and persist
+            try:
+                win.destroy()
+            except Exception:
+                pass
+            try:
+                app.save_state()
+            except Exception:
+                pass
+
         win = tk.Toplevel(self)
         win.title("View task")
         win.geometry("420x340")
@@ -277,6 +321,7 @@ class TaskCard(tk.Frame):
         btns.pack(fill=tk.X, pady=10)
         ttk.Button(btns, text="Cancel", command=win.destroy).pack(side=tk.RIGHT, padx=4)
         ttk.Button(btns, text="Save", command=on_ok).pack(side=tk.RIGHT)
+        ttk.Button(btns, text="Move to Backlog", command=move_to_backlog).pack(side=tk.LEFT)
 
     def delete(self):
         if messagebox.askyesno("Delete", "Delete this task?"):
@@ -392,6 +437,18 @@ class BacklogPanel(ttk.Frame):
         btns.pack(fill=tk.X, pady=(6, 0))
         ttk.Button(btns, text="To To-Do", command=self._move_selected_to_todo).pack(side=tk.LEFT)
         ttk.Button(btns, text="Delete", command=self._delete_selected).pack(side=tk.RIGHT)
+
+    def add_item(self, title: str, desc: str = ""):
+        title = (title or "").strip()
+        if not title:
+            return
+        self.listbox.insert(tk.END, title)
+        self._backlog_desc.append(desc or "")
+        # Persist after programmatic add
+        try:
+            self._get_app().save_state()
+        except Exception:
+            pass
 
     def _add(self):
         text = self.entry.get().strip()
@@ -646,7 +703,14 @@ class App(tk.Tk):
         # Restore backlog
         backlog_items = data.get("backlog", [])
         if isinstance(backlog_items, list):
-            self.backlog.set_items([str(x) for x in backlog_items])
+            # Accept both legacy string list and new dict list
+            items_norm = []
+            for it in backlog_items:
+                if isinstance(it, dict):
+                    items_norm.append({"title": str(it.get("title", "")), "desc": str(it.get("desc", ""))})
+                else:
+                    items_norm.append(str(it))
+            self.backlog.set_items(items_norm)
             if backlog_items:
                 restored_any = True
 
