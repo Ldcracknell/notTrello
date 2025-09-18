@@ -525,7 +525,7 @@ class BacklogPanel(ttk.Frame):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("notTrello - Tkinter Board")
+        self.title("notTrello")
         self.geometry("1200x700")
         self.minsize(860, 560)
 
@@ -721,40 +721,6 @@ class App(tk.Tk):
             self.save_state()
         finally:
             self.destroy()
-
-    # Windows dark title bar via DWM (Windows 10/11)
-    def _apply_dark_titlebar(self, hwnd: int):
-        try:
-            DWMWA_USE_IMMERSIVE_DARK_MODE = 20  # Windows 10 1903+ / 11
-            DWMWA_USE_IMMERSIVE_DARK_MODE_OLD = 19  # Windows 10 1809
-            DWMWA_BORDER_COLOR = 34  # Win11 22H2+
-            DWMWA_CAPTION_COLOR = 35  # Win11 22H2+
-            DWMWA_TEXT_COLOR = 36     # Win11 22H2+
-
-            dwmapi = ctypes.windll.dwmapi
-
-            # Enable immersive dark mode if supported
-            one = ctypes.c_int(1)
-            dwmapi.DwmSetWindowAttribute(ctypes.c_void_p(hwnd), DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(one), ctypes.sizeof(one))
-            dwmapi.DwmSetWindowAttribute(ctypes.c_void_p(hwnd), DWMWA_USE_IMMERSIVE_DARK_MODE_OLD, ctypes.byref(one), ctypes.sizeof(one))
-
-            # Also explicitly set caption/text/border colors on Windows 11 when available
-            def colorref(hex_rgb: str) -> ctypes.c_uint:
-                # Convert "#RRGGBB" to COLORREF (0x00BBGGRR)
-                r = int(hex_rgb[1:3], 16)
-                g = int(hex_rgb[3:5], 16)
-                b = int(hex_rgb[5:7], 16)
-                return ctypes.c_uint((b) | (g << 8) | (r << 16))
-
-            caption_col = colorref(APP_BG)     # dark caption background
-            text_col = colorref(FG)            # light text
-            border_col = colorref(APP_BG)      # blend border
-
-            dwmapi.DwmSetWindowAttribute(ctypes.c_void_p(hwnd), DWMWA_CAPTION_COLOR, ctypes.byref(caption_col), ctypes.sizeof(caption_col))
-            dwmapi.DwmSetWindowAttribute(ctypes.c_void_p(hwnd), DWMWA_TEXT_COLOR, ctypes.byref(text_col), ctypes.sizeof(text_col))
-            dwmapi.DwmSetWindowAttribute(ctypes.c_void_p(hwnd), DWMWA_BORDER_COLOR, ctypes.byref(border_col), ctypes.sizeof(border_col))
-        except Exception:
-            pass
 
 if __name__ == "__main__":
     App().mainloop()
