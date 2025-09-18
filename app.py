@@ -4,6 +4,7 @@ from typing import Dict, Optional
 import json
 import os
 import ctypes
+import sys
 
 # Simple Tkinter board with drag-and-drop and a backlog tab
 
@@ -531,8 +532,14 @@ class App(tk.Tk):
 
         self.drag = DragState()
 
-        # Where to store state
-        self.state_path = os.path.join(os.path.dirname(__file__), "board_state.json")
+        # Where to store state (use AppData to work in a frozen EXE)
+        appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
+        data_dir = os.path.join(appdata, "notTrello")
+        try:
+            os.makedirs(data_dir, exist_ok=True)
+        except Exception:
+            pass
+        self.state_path = os.path.join(data_dir, "board_state.json")
 
         # Dark ttk styling and window background
         self.configure(bg=APP_BG)
@@ -673,7 +680,16 @@ class App(tk.Tk):
 
     def load_state(self) -> bool:
         if not os.path.exists(self.state_path):
-            return False
+            # Fallback: try legacy location next to script (pre-EXE builds)
+            try:
+                base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
+            except Exception:
+                base_dir = os.getcwd()
+            legacy_path = os.path.join(base_dir, "board_state.json")
+            if os.path.exists(legacy_path):
+                self.state_path = legacy_path
+            else:
+                return False
         try:
             with open(self.state_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
